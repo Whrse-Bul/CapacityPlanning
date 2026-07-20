@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light" />
-  <title>Warehouse Capacity Planning v1.0</title>
+  <title>Warehouse Capacity Planning v1.2</title>
   <style>
     :root {
       --bg: #f4f7f5;
@@ -104,12 +104,43 @@
     .btn.danger { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
     .btn.icon { padding: 9px 11px; }
 
-    .layout { display: grid; grid-template-columns: 238px minmax(0,1fr); min-height: calc(100vh - 74px); }
+    .layout {
+      display: grid;
+      grid-template-columns: 238px minmax(0,1fr);
+      min-height: calc(100vh - 74px);
+      transition: grid-template-columns .24s ease;
+    }
     .sidebar {
       padding: 20px 14px;
       border-right: 1px solid var(--line);
       background: rgba(248,251,249,0.78);
+      transition: width .24s ease, padding .24s ease, transform .24s ease;
+      overflow: hidden;
     }
+    .sidebar-toggle {
+      flex: 0 0 auto;
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: white;
+      color: var(--text);
+      font-size: 20px;
+      line-height: 1;
+      transition: .2s ease;
+    }
+    .sidebar-toggle:hover { background: var(--primary-soft); color: var(--primary); }
+    .nav-label { white-space: nowrap; }
+    body.sidebar-collapsed .layout { grid-template-columns: 78px minmax(0,1fr); }
+    body.sidebar-collapsed .sidebar { padding-left: 10px; padding-right: 10px; }
+    body.sidebar-collapsed .nav-title,
+    body.sidebar-collapsed .sidebar-note,
+    body.sidebar-collapsed .nav-label { display: none; }
+    body.sidebar-collapsed .nav-btn { justify-content: center; padding-left: 10px; padding-right: 10px; }
+    body.sidebar-collapsed .nav-icon { width: 28px; font-size: 18px; }
+    .sidebar-backdrop { display: none; }
     .nav-title { padding: 0 11px 8px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
     .nav-btn {
       width: 100%;
@@ -317,6 +348,17 @@
     .donut::after { content: ""; width: 96px; aspect-ratio: 1; border-radius: 50%; background: white; position: absolute; }
     .donut-value { position: relative; z-index: 1; font-size: 24px; font-weight: 850; }
 
+    .summary-grid { display: grid; grid-template-columns: repeat(5, minmax(130px,1fr)); gap: 12px; }
+    .summary-box { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-2); }
+    .summary-box .label { color: var(--muted); font-size: 11px; font-weight: 750; line-height: 1.35; }
+    .summary-box .value { margin-top: 7px; font-size: 24px; font-weight: 850; letter-spacing: -.03em; }
+    .summary-box .detail { margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+    .table-note { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .cell-sub { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .text-bad { color: var(--bad); }
+    .text-warn { color: var(--warn); }
+    .text-good { color: var(--good); }
+
     .footer { color: var(--muted); font-size: 11px; text-align: center; padding: 20px 0 4px; }
 
     .toast {
@@ -347,20 +389,41 @@
     @media (max-width: 820px) {
       .topbar { padding: 12px 14px; align-items: flex-start; }
       .brand-copy p, .save-status { display: none; }
-      .layout { grid-template-columns: 1fr; }
+      .layout, body.sidebar-collapsed .layout { grid-template-columns: 1fr; }
       .sidebar {
-        position: sticky;
+        position: fixed;
         top: 69px;
-        z-index: 15;
-        display: flex;
-        overflow-x: auto;
-        padding: 8px;
-        border-right: 0;
-        border-bottom: 1px solid var(--line);
-        background: rgba(248,251,249,.96);
+        left: 0;
+        bottom: 0;
+        z-index: 35;
+        width: min(280px, 86vw);
+        display: block;
+        overflow-y: auto;
+        padding: 18px 12px;
+        border-right: 1px solid var(--line);
+        border-bottom: 0;
+        background: rgba(248,251,249,.99);
+        box-shadow: 18px 0 40px rgba(20,55,42,.15);
+        transform: translateX(-105%);
       }
-      .nav-title, .sidebar-note { display: none; }
-      .nav-btn { flex: 0 0 auto; width: auto; margin: 0 4px 0 0; padding: 10px 12px; }
+      body.mobile-sidebar-open .sidebar { transform: translateX(0); }
+      body.sidebar-collapsed .sidebar { padding: 18px 12px; }
+      body.sidebar-collapsed .nav-title,
+      body.sidebar-collapsed .sidebar-note,
+      body.sidebar-collapsed .nav-label { display: block; }
+      body.sidebar-collapsed .nav-btn { justify-content: flex-start; padding: 12px 13px; }
+      .sidebar-backdrop {
+        position: fixed;
+        inset: 69px 0 0 0;
+        z-index: 34;
+        background: rgba(10,28,22,.34);
+        backdrop-filter: blur(2px);
+      }
+      body.mobile-sidebar-open .sidebar-backdrop { display: block; }
+      .nav-btn { width: 100%; margin: 0 0 6px; padding: 12px 13px; }
+      .nav-title { display: block; }
+      .sidebar-note { display: block; }
+      .summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
       main { padding: 17px 13px; }
       .page-head { flex-direction: column; }
       .page-meta { text-align: left; }
@@ -369,6 +432,12 @@
       .form-group.span-2, .form-group.span-4 { grid-column: span 1; }
       .process-notes { grid-template-columns: 1fr; }
       .storage-meter { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+    }
+
+    @media (max-width: 520px) {
+      .summary-grid { grid-template-columns: 1fr; }
+      .top-actions .btn:not(.danger) { display: none; }
+      .brand-copy h1 { font-size: 15px; }
     }
 
     @media print {
@@ -385,6 +454,7 @@
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle navigation" aria-expanded="true">☰</button>
         <div class="brand-mark">WC</div>
         <div class="brand-copy">
           <h1>Warehouse Capacity Planning</h1>
@@ -404,16 +474,17 @@
     <div class="layout">
       <aside class="sidebar">
         <div class="nav-title">Workspace</div>
-        <button class="nav-btn active" data-view="dashboard"><span class="nav-icon">📊</span>Dashboard</button>
-        <button class="nav-btn" data-view="planning"><span class="nav-icon">📝</span>Daily Planning</button>
-        <button class="nav-btn" data-view="capacity"><span class="nav-icon">🧮</span>Capacity & Allocation</button>
-        <button class="nav-btn" data-view="workflow"><span class="nav-icon">🔄</span>Process & Milestones</button>
-        <button class="nav-btn" data-view="settings"><span class="nav-icon">⚙️</span>Standards</button>
+        <button class="nav-btn active" data-view="dashboard" title="Dashboard"><span class="nav-icon">📊</span><span class="nav-label">Dashboard</span></button>
+        <button class="nav-btn" data-view="planning" title="Daily Planning"><span class="nav-icon">📝</span><span class="nav-label">Daily Planning</span></button>
+        <button class="nav-btn" data-view="capacity" title="Capacity & Allocation"><span class="nav-icon">🧮</span><span class="nav-label">Capacity & Allocation</span></button>
+        <button class="nav-btn" data-view="workflow" title="Process & Milestones"><span class="nav-icon">🔄</span><span class="nav-label">Process & Milestones</span></button>
+        <button class="nav-btn" data-view="settings" title="Standards"><span class="nav-icon">⚙️</span><span class="nav-label">Standards</span></button>
         <div class="sidebar-note">
           <strong>Planning rule</strong><br />
           Review volume, manpower, time, and handoff capacity together. A department is not truly “on plan” when it only pushes excess work to the next process.
         </div>
       </aside>
+      <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
       <main>
         <section class="view active" id="view-dashboard">
@@ -542,27 +613,22 @@
           </div>
 
           <div class="card">
-            <div class="card-head"><div><h3>Department Capacity Summary</h3><p>Required HC is rounded up to the next whole person.</p></div><button class="btn primary" id="applyAllocationBtn">Apply Recommended HC</button></div>
-            <div class="table-wrap"><table><thead><tr><th>Department</th><th>Total Workload</th><th>Assigned HC</th><th>Daily Capacity</th><th>Utilization</th><th>Required HC</th><th>HC Gap</th><th>OT Needed</th><th>Recommended HC</th></tr></thead><tbody id="capacityTable"></tbody></table></div>
+            <div class="card-head">
+              <div><h3>Department Capacity Summary</h3><p>Recommended HC is the minimum team that can finish within the regular shift plus the allowed OT limit.</p></div>
+              <button class="btn primary" id="applyAllocationBtn">Apply Recommended HC + OT</button>
+            </div>
+            <p class="table-note"><strong>OT Needed</strong> is the overtime per person using the currently assigned HC. <strong>Ending Backlog</strong> is the remaining quantity after the currently assigned HC works up to the allowed OT limit.</p>
+            <div class="table-wrap"><table><thead><tr><th>Department</th><th>Total Workload</th><th>Assigned HC</th><th>Daily Capacity</th><th>Utilization</th><th>OT Needed</th><th>Recommended HC<br /><span class="cell-sub">with allowed OT</span></th><th>Ending Backlog<br /><span class="cell-sub">assigned HC + allowed OT</span></th></tr></thead><tbody id="capacityTable"></tbody></table></div>
           </div>
 
-          <div class="grid two" style="margin-top:16px">
-            <div class="card">
-              <div class="card-head"><div><h3>Allocation Rationale</h3><p>Why the suggested team preparation was selected</p></div></div>
-              <div class="recommendations" id="allocationRationale"></div>
-            </div>
-            <div class="card">
-              <div class="card-head"><div><h3>What-if Simulator</h3><p>Test extra manpower or overtime before changing the saved plan</p></div></div>
-              <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-                <div class="form-group"><label>Department</label><select id="simDept"></select></div>
-                <div class="form-group"><label>Additional HC</label><input id="simExtraHC" type="number" min="0" value="0" /></div>
-                <div class="form-group"><label>Overtime hours</label><input id="simOT" type="number" min="0" step="0.5" value="0" /></div>
-                <div class="form-group"><label>Expected capacity</label><input id="simCapacity" readonly /></div>
-                <div class="form-group"><label>Projected backlog</label><input id="simBacklog" readonly /></div>
-                <div class="form-group"><label>Result</label><input id="simResult" readonly /></div>
-              </div>
-              <div class="notice" id="simNote" style="margin-top:14px">Choose a department and test a scenario.</div>
-            </div>
+          <div class="card" style="margin-top:16px">
+            <div class="card-head"><div><h3>Manpower Requirement Summary</h3><p>Immediate view of the total warehouse preparation needed for today.</p></div></div>
+            <div class="summary-grid" id="manpowerSummary"></div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-head"><div><h3>Allocation Rationale</h3><p>Why the suggested team preparation was selected</p></div></div>
+            <div class="recommendations" id="allocationRationale"></div>
           </div>
         </section>
 
@@ -610,7 +676,7 @@
           <div class="page-head">
             <div>
               <h2>Capacity Standards</h2>
-              <p>Version 1.0 starts with the locked standards discussed. Edit only when validated against actual operation data.</p>
+              <p>Version 1.2 uses a fixed maximum OT ceiling of 3 hours per person. Other standards may be edited only when validated against actual operation data.</p>
             </div>
           </div>
           <div class="card">
@@ -624,6 +690,7 @@
               <div class="form-group"><label>Rack warning level (%)</label><input type="number" min="1" max="100" data-path="standards.rackWarning" /></div>
               <div class="form-group"><label>Rack critical level (%)</label><input type="number" min="1" max="100" data-path="standards.rackCritical" /></div>
               <div class="form-group"><label>Green utilization ceiling (%)</label><input type="number" min="1" max="100" data-path="standards.greenUtilization" /></div>
+              <div class="form-group"><label>Maximum allowed OT (hours/person)</label><input type="number" min="3" max="3" step="1" data-path="standards.maxOTHours" readonly /><span class="help">Fixed operational limit: 3 hours per person.</span></div>
             </div>
             <div class="card-head" style="margin-top:18px"><div><h3>Current Locked Reference</h3><p>Original standards agreed for the first version.</p></div></div>
             <div class="table-wrap"><table><thead><tr><th>Department</th><th>Reference Standard</th><th>Planning Purpose</th></tr></thead><tbody>
@@ -636,7 +703,7 @@
           </div>
         </section>
 
-        <div class="footer">Warehouse Capacity Planning v1.0 · Data is stored only in this browser unless exported.</div>
+        <div class="footer">Warehouse Capacity Planning v1.2 · Data is stored only in this browser unless exported.</div>
       </main>
     </div>
   </div>
@@ -645,6 +712,8 @@
 
   <script>
     const STORAGE_KEY = 'warehouse_capacity_planning_v1';
+    const SIDEBAR_KEY = 'warehouse_capacity_sidebar_collapsed';
+    const FIXED_MAX_OT_HOURS = 3;
     const DEPARTMENTS = [
       { key: 'inbound', label: 'Inbound', icon: '📥', unit: 'pcs', standardLabel: 'pcs/hr/person' },
       { key: 'qc', label: 'QC', icon: '🔎', unit: 'pcs', standardLabel: 'pcs/hr/person' },
@@ -671,7 +740,8 @@
         fulfillmentBaseHours: 8,
         rackWarning: 85,
         rackCritical: 95,
-        greenUtilization: 85
+        greenUtilization: 85,
+        maxOTHours: 3
       },
       departments: {
         inbound: { planned: 0, backlog: 0, hc: 0, actual: 0, notes: '' },
@@ -683,7 +753,6 @@
     };
 
     let state = loadState();
-    let lastAllocation = {};
     let saveTimer;
 
     function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
@@ -698,11 +767,17 @@
       });
       return out;
     }
+    function enforceOperationalRules(plan) {
+      plan.standards = plan.standards || {};
+      plan.standards.maxOTHours = FIXED_MAX_OT_HOURS;
+      return plan;
+    }
     function loadState() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? mergeDeep(defaultState, JSON.parse(raw)) : clone(defaultState);
-      } catch (e) { return clone(defaultState); }
+        const loaded = raw ? mergeDeep(defaultState, JSON.parse(raw)) : clone(defaultState);
+        return enforceOperationalRules(loaded);
+      } catch (e) { return enforceOperationalRules(clone(defaultState)); }
     }
     function saveState() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -776,17 +851,30 @@
       const workload = number(d.planned) + number(d.backlog);
       const hc = number(d.hc);
       const hours = Math.max(0, number(state.meta.shiftHours));
+      const maxOT = Math.max(0, number(state.standards.maxOTHours));
       const eff = Math.max(0, number(state.meta.efficiency)) / 100;
       const rate = hourlyRate(key);
       const capacity = hc * hours * rate * eff;
+      const capacityWithAllowedOT = hc * (hours + maxOT) * rate * eff;
       const perPersonCapacity = hours * rate * eff;
+      const perPersonCapacityWithOT = (hours + maxOT) * rate * eff;
       const requiredHC = workload > 0 && perPersonCapacity > 0 ? Math.ceil(workload / perPersonCapacity) : 0;
+      const recommendedHCWithOT = workload > 0 && perPersonCapacityWithOT > 0 ? Math.ceil(workload / perPersonCapacityWithOT) : 0;
       const utilization = capacity > 0 ? workload / capacity * 100 : (workload > 0 ? 999 : 0);
       const backlog = Math.max(0, workload - capacity);
+      const endingBacklogWithAllowedOT = Math.max(0, workload - capacityWithAllowedOT);
       const surplus = Math.max(0, capacity - workload);
       const completionHours = hc > 0 && rate > 0 && eff > 0 ? workload / (hc * rate * eff) : 0;
       const otNeeded = hc > 0 && rate > 0 && eff > 0 ? backlog / (hc * rate * eff) : (backlog > 0 ? Infinity : 0);
-      return { key, workload, hc, hours, eff, rate, capacity, perPersonCapacity, requiredHC, utilization, backlog, surplus, completionHours, otNeeded, actual: number(d.actual) };
+      const recommendedOT = recommendedHCWithOT > 0 && rate > 0 && eff > 0
+        ? Math.max(0, workload / (recommendedHCWithOT * rate * eff) - hours)
+        : (workload > 0 ? Infinity : 0);
+      return {
+        key, workload, hc, hours, maxOT, eff, rate, capacity, capacityWithAllowedOT,
+        perPersonCapacity, perPersonCapacityWithOT, requiredHC, recommendedHCWithOT,
+        utilization, backlog, endingBacklogWithAllowedOT, surplus, completionHours,
+        otNeeded, recommendedOT, actual: number(d.actual)
+      };
     }
 
     function allMetrics() { return Object.fromEntries(DEPARTMENTS.map(d => [d.key, deptMetrics(d.key)])); }
@@ -807,48 +895,18 @@
       return weights;
     }
 
-    function calculateAllocation(metrics) {
-      const available = number(state.meta.totalPool) > 0 ? Math.floor(number(state.meta.totalPool)) : Math.floor(DEPARTMENTS.reduce((s,d) => s + metrics[d.key].hc, 0));
-      const requiredTotal = DEPARTMENTS.reduce((s,d) => s + metrics[d.key].requiredHC, 0);
-      const allocation = Object.fromEntries(DEPARTMENTS.map(d => [d.key, 0]));
-      let remaining = available;
-
-      DEPARTMENTS.forEach(d => {
-        if (metrics[d.key].workload > 0 && remaining > 0) { allocation[d.key] = 1; remaining--; }
-      });
-
-      const weights = priorityWeights();
-      while (remaining > 0) {
-        const candidates = DEPARTMENTS
-          .filter(d => allocation[d.key] < metrics[d.key].requiredHC)
-          .map(d => {
-            const m = metrics[d.key];
-            const currentCap = allocation[d.key] * m.perPersonCapacity;
-            const unmet = Math.max(0, m.workload - currentCap);
-            const score = (unmet / Math.max(1, m.perPersonCapacity)) * weights[d.key];
-            return { key: d.key, score };
-          })
-          .sort((a,b) => b.score - a.score);
-        if (!candidates.length) break;
-        allocation[candidates[0].key]++;
-        remaining--;
-      }
-
-      lastAllocation = { available, requiredTotal, remaining, allocation };
-      return lastAllocation;
-    }
-
-    function renderDashboard(metrics, allocation) {
+    function renderDashboard(metrics) {
       const workloadTotal = DEPARTMENTS.reduce((s,d) => s + metrics[d.key].workload, 0);
       const manpowerTotal = DEPARTMENTS.reduce((s,d) => s + metrics[d.key].hc, 0);
       const requiredTotal = DEPARTMENTS.reduce((s,d) => s + metrics[d.key].requiredHC, 0);
+      const requiredWithOTTotal = DEPARTMENTS.reduce((s,d) => s + metrics[d.key].recommendedHCWithOT, 0);
       const backlogTotal = DEPARTMENTS.reduce((s,d) => s + metrics[d.key].backlog, 0);
       const bottleneck = [...DEPARTMENTS].sort((a,b) => metrics[b.key].utilization - metrics[a.key].utilization)[0];
       const bottleneckM = bottleneck ? metrics[bottleneck.key] : null;
 
       document.getElementById('kpiWorkload').textContent = fmt(workloadTotal);
       document.getElementById('kpiManpower').textContent = fmt(manpowerTotal);
-      document.getElementById('kpiRequired').textContent = `${fmt(requiredTotal)} required`;
+      document.getElementById('kpiRequired').textContent = `${fmt(requiredWithOTTotal)} required with ${fmt(state.standards.maxOTHours,1)}h OT · ${fmt(requiredTotal)} without OT`;
       document.getElementById('kpiBacklog').textContent = fmt(backlogTotal);
       document.getElementById('kpiBacklogNote').textContent = backlogTotal ? 'Corrective action required today' : 'No projected backlog';
       document.getElementById('kpiBottleneck').textContent = workloadTotal ? bottleneck.label : '—';
@@ -869,18 +927,18 @@
             <div class="metric-row"><span>Daily capacity</span><strong>${fmt(m.capacity)} pcs</strong></div>
             <div class="metric-row"><span>Assigned / required HC</span><strong>${fmt(m.hc)} / ${fmt(m.requiredHC)}</strong></div>
             <div class="metric-row"><span>Projected backlog</span><strong>${fmt(m.backlog)} pcs</strong></div>
-            <div class="metric-row"><span>Recommended HC</span><strong>${fmt(allocation.allocation[d.key])}</strong></div>
+            <div class="metric-row"><span>Recommended HC + OT</span><strong>${fmt(m.recommendedHCWithOT)} <span class="cell-sub">${Number.isFinite(m.recommendedOT) ? fmt(m.recommendedOT,1) + ' hr/HC OT' : 'assign HC'}</span></strong></div>
           </div>
         </div>`;
       }).join('');
 
-      renderRecommendations(metrics, allocation);
+      renderRecommendations(metrics);
       renderStorage();
       drawCapacityChart(metrics);
       drawBacklogChart(metrics);
     }
 
-    function renderRecommendations(metrics, allocation) {
+    function renderRecommendations(metrics) {
       const recs = [];
       const overloaded = DEPARTMENTS.filter(d => metrics[d.key].utilization > 100).sort((a,b) => metrics[b.key].utilization - metrics[a.key].utilization);
       if (!overloaded.length) {
@@ -888,9 +946,13 @@
       } else {
         overloaded.forEach(d => {
           const m = metrics[d.key];
-          const gap = Math.max(0, m.requiredHC - m.hc);
-          const otText = Number.isFinite(m.otNeeded) ? `${fmt(m.otNeeded,1)} OT hours with current HC` : 'manpower must be assigned before work can start';
-          recs.push({icon:'⚠️', title:`${d.label}: add ${gap} HC or schedule OT`, text:`Projected backlog is ${fmt(m.backlog)} pcs. Minimum recovery is ${gap} additional HC for the regular shift, or approximately ${otText}.`});
+          const addHC = Math.max(0, m.recommendedHCWithOT - m.hc);
+          const otAtRecommended = Number.isFinite(m.recommendedOT) ? fmt(m.recommendedOT,1) : '—';
+          const title = addHC > 0
+            ? `${d.label}: add ${addHC} HC and plan ${otAtRecommended} hr OT/HC`
+            : `${d.label}: schedule ${fmt(m.otNeeded,1)} hr OT/HC`;
+          const backlogAfterAllowedOT = m.endingBacklogWithAllowedOT;
+          recs.push({icon:'⚠️', title, text:`Regular-shift backlog is ${fmt(m.backlog)} pcs. With the current HC capped at ${fmt(m.maxOT,1)} OT hours, ${fmt(backlogAfterAllowedOT)} pcs would remain. Recommended preparation is ${fmt(m.recommendedHCWithOT)} HC.`});
         });
       }
 
@@ -906,7 +968,9 @@
 
       const rackPct = state.storage.totalLocations > 0 ? state.storage.occupiedLocations / state.storage.totalLocations * 100 : 0;
       if (rackPct >= state.standards.rackWarning) recs.push({icon:'🏷️', title:'Storage space needs action', text:`Rack utilization is ${pct(rackPct)}. Prioritize location clearing, consolidation, and put-away completion before additional inbound volume is released.`});
-      if (allocation.available < allocation.requiredTotal) recs.push({icon:'👥', title:'Total HC pool is below requirement', text:`Available pool is ${allocation.available} versus ${allocation.requiredTotal} required. Use the proposed allocation to protect the highest-risk stages, then approve OT or additional manpower for the remaining gap.`});
+      const availablePool = number(state.meta.totalPool) > 0 ? Math.floor(number(state.meta.totalPool)) : DEPARTMENTS.reduce((s,d)=>s+metrics[d.key].hc,0);
+      const requiredWithOT = DEPARTMENTS.reduce((s,d)=>s+metrics[d.key].recommendedHCWithOT,0);
+      if (availablePool < requiredWithOT) recs.push({icon:'👥', title:'Total HC pool is below the controlled-OT requirement', text:`Available pool is ${fmt(availablePool)} versus ${fmt(requiredWithOT)} required when OT is limited to ${fmt(state.standards.maxOTHours,1)} hours per person. Approve ${fmt(requiredWithOT-availablePool)} additional HC, cross-trained support, or workload deferral.`});
 
       document.getElementById('recommendations').innerHTML = recs.slice(0,6).map(r => `<div class="recommendation"><div class="rec-icon">${r.icon}</div><div><h4>${r.title}</h4><p>${r.text}</p></div></div>`).join('');
     }
@@ -940,43 +1004,62 @@
       }
     }
 
-    function renderCapacity(metrics, allocation) {
+    function renderCapacity(metrics) {
+      const maxOT = Math.max(0, number(state.standards.maxOTHours));
       document.getElementById('capacityTable').innerHTML = DEPARTMENTS.map(d => {
         const m = metrics[d.key];
         const s = statusFromUtil(m.utilization);
-        const gap = m.requiredHC - m.hc;
-        const ot = !Number.isFinite(m.otNeeded) ? 'Assign HC' : `${fmt(m.otNeeded,1)} hr`;
-        return `<tr><td><strong>${d.icon} ${d.label}</strong></td><td>${fmt(m.workload)} pcs</td><td>${fmt(m.hc)}</td><td>${fmt(m.capacity)} pcs</td><td><span class="status-pill ${s.cls}">${pct(m.utilization)}</span></td><td>${fmt(m.requiredHC)}</td><td>${gap > 0 ? '+' : ''}${fmt(gap)}</td><td>${ot}</td><td><strong>${fmt(allocation.allocation[d.key])}</strong></td></tr>`;
+        let otDisplay = '0 hr';
+        let otClass = 'text-good';
+        let otSub = 'No OT required';
+        if (!Number.isFinite(m.otNeeded)) {
+          otDisplay = 'Assign HC';
+          otClass = 'text-bad';
+          otSub = 'No current owner';
+        } else if (m.otNeeded > 0) {
+          otDisplay = `${fmt(m.otNeeded,1)} hr / HC`;
+          otClass = m.otNeeded > maxOT ? 'text-bad' : 'text-warn';
+          otSub = m.otNeeded > maxOT ? `Over ${fmt(maxOT,1)} hr limit` : `Within ${fmt(maxOT,1)} hr limit`;
+        }
+        const endingClass = m.endingBacklogWithAllowedOT > 0 ? 'text-bad' : 'text-good';
+        return `<tr>
+          <td><strong>${d.icon} ${d.label}</strong></td>
+          <td>${fmt(m.workload)} pcs</td>
+          <td>${fmt(m.hc)}</td>
+          <td>${fmt(m.capacity)} pcs<span class="cell-sub">regular shift</span></td>
+          <td><span class="status-pill ${s.cls}">${pct(m.utilization)}</span></td>
+          <td><strong class="${otClass}">${otDisplay}</strong><span class="cell-sub">${otSub}</span></td>
+          <td><strong>${fmt(m.recommendedHCWithOT)}</strong><span class="cell-sub">${Number.isFinite(m.recommendedOT) ? fmt(m.recommendedOT,1) + ' hr/HC planned OT' : 'assign HC first'}</span></td>
+          <td><strong class="${endingClass}">${fmt(m.endingBacklogWithAllowedOT)} pcs</strong><span class="cell-sub">after current HC + ${fmt(maxOT,1)}h OT</span></td>
+        </tr>`;
       }).join('');
 
+      const assignedTotal = DEPARTMENTS.reduce((s,d)=>s+metrics[d.key].hc,0);
+      const available = number(state.meta.totalPool) > 0 ? Math.floor(number(state.meta.totalPool)) : assignedTotal;
+      const requiredNoOT = DEPARTMENTS.reduce((s,d)=>s+metrics[d.key].requiredHC,0);
+      const requiredWithOT = DEPARTMENTS.reduce((s,d)=>s+metrics[d.key].recommendedHCWithOT,0);
+      const shortage = Math.max(0, requiredWithOT-available);
+      const endingBacklog = DEPARTMENTS.reduce((s,d)=>s+metrics[d.key].endingBacklogWithAllowedOT,0);
+
+      document.getElementById('manpowerSummary').innerHTML = `
+        <div class="summary-box"><div class="label">Available HC Pool</div><div class="value">${fmt(available)}</div><div class="detail">${number(state.meta.totalPool)>0 ? 'Declared warehouse pool' : 'Current assigned HC total'}</div></div>
+        <div class="summary-box"><div class="label">Required HC Without OT</div><div class="value">${fmt(requiredNoOT)}</div><div class="detail">Regular shift only</div></div>
+        <div class="summary-box"><div class="label">Required HC With OT</div><div class="value">${fmt(requiredWithOT)}</div><div class="detail">Maximum ${fmt(maxOT,1)} hr/person</div></div>
+        <div class="summary-box"><div class="label">Remaining HC Shortage</div><div class="value ${shortage>0?'text-bad':'text-good'}">${fmt(shortage)}</div><div class="detail">Against controlled-OT plan</div></div>
+        <div class="summary-box"><div class="label">Backlog After Allowed OT</div><div class="value ${endingBacklog>0?'text-bad':'text-good'}">${fmt(endingBacklog)}</div><div class="detail">Using current assigned HC</div></div>`;
+
       const rationales = [];
-      const poolSource = number(state.meta.totalPool) > 0 ? 'declared warehouse HC pool' : 'currently assigned HC total';
-      rationales.push({icon:'👥', title:`Allocate ${allocation.available} HC from the ${poolSource}`, text:`The full calculated requirement is ${allocation.requiredTotal} HC. ${allocation.remaining > 0 ? `${allocation.remaining} HC remain as floaters after all requirements are covered.` : 'No unassigned HC remains after the recommendation.'}`});
-      const weights = priorityWeights();
-      const top = [...DEPARTMENTS].sort((a,b) => weights[b.key] - weights[a.key])[0];
-      rationales.push({icon:'🎯', title:`Priority mode: ${state.meta.priorityMode}`, text:`Allocation gives additional protection to ${top.label} while preserving at least one owner for each active department.`});
-      const overloaded = DEPARTMENTS.filter(d => metrics[d.key].requiredHC > allocation.allocation[d.key]);
-      if (overloaded.length) rationales.push({icon:'⏱️', title:'Capacity gap remains after reallocation', text:`${overloaded.map(d=>d.label).join(', ')} still need overtime, cross-trained support, schedule splitting, or workload deferral because the total HC pool is not enough.`});
-      else rationales.push({icon:'✅', title:'Recommended allocation covers the workload', text:'The suggested headcount can finish the entered workload within regular hours at the selected efficiency, assuming no major disruption.'});
+      rationales.push({icon:'👥', title:`Prepare ${requiredWithOT} HC with a ${fmt(maxOT,1)}-hour OT ceiling`, text:`Without OT, the operation requires ${requiredNoOT} HC. Controlled OT reduces the requirement by ${Math.max(0,requiredNoOT-requiredWithOT)} HC.`});
+      if (shortage > 0) {
+        rationales.push({icon:'⚠️', title:`Manpower shortage remains: ${shortage} HC`, text:`The available pool is ${available} HC. Add cross-trained support, approve temporary manpower, or defer lower-priority workload before applying the full recommendation.`});
+      } else {
+        rationales.push({icon:'✅', title:'Available HC can support the controlled-OT plan', text:`The current pool can cover the minimum recommended HC across all active departments, subject to the planned overtime and normal operating efficiency.`});
+      }
+      const overLimit = DEPARTMENTS.filter(d => metrics[d.key].otNeeded > maxOT || !Number.isFinite(metrics[d.key].otNeeded));
+      if (overLimit.length) rationales.push({icon:'⏱️', title:'Current assignment exceeds the OT limit', text:`${overLimit.map(d=>d.label).join(', ')} cannot clear the workload with current HC within the ${fmt(maxOT,1)}-hour OT limit. Use the recommended HC shown in the table.`});
+      if (endingBacklog > 0) rationales.push({icon:'📦', title:`${fmt(endingBacklog)} pcs would still roll over under the current assignment`, text:'This ending backlog already assumes every currently assigned person works up to the allowed OT limit. Rebalance HC before the shift or formally defer the excess volume.'});
       rationales.push({icon:'🔄', title:'Keep the process balanced', text:'Do not maximize one department in isolation. Release work at the rate the next department can absorb to avoid staging congestion and hidden queues.'});
       document.getElementById('allocationRationale').innerHTML = rationales.map(r => `<div class="recommendation"><div class="rec-icon">${r.icon}</div><div><h4>${r.title}</h4><p>${r.text}</p></div></div>`).join('');
-
-      renderSimulator(metrics);
-    }
-
-    function renderSimulator(metrics) {
-      const select = document.getElementById('simDept');
-      if (!select.options.length) select.innerHTML = DEPARTMENTS.map(d=>`<option value="${d.key}">${d.label}</option>`).join('');
-      const key = select.value || 'inbound';
-      const m = metrics[key];
-      const extra = number(document.getElementById('simExtraHC').value);
-      const ot = number(document.getElementById('simOT').value);
-      const newCapacity = (m.hc + extra) * (m.hours + ot) * m.rate * m.eff;
-      const newBacklog = Math.max(0,m.workload-newCapacity);
-      document.getElementById('simCapacity').value = fmt(newCapacity) + ' pcs';
-      document.getElementById('simBacklog').value = fmt(newBacklog) + ' pcs';
-      document.getElementById('simResult').value = newBacklog <= 0 ? 'Workload covered' : 'Gap remains';
-      document.getElementById('simNote').textContent = newBacklog <= 0 ? `This scenario covers the ${fmt(m.workload)} pcs workload with about ${fmt(newCapacity-m.workload)} pcs spare capacity.` : `This scenario still leaves ${fmt(newBacklog)} pcs. Add HC, OT, or defer lower-priority work.`;
     }
 
     function milestoneTime(fraction) {
@@ -1088,40 +1171,63 @@
 
     function renderAll() {
       const metrics = allMetrics();
-      const allocation = calculateAllocation(metrics);
-      renderDashboard(metrics, allocation);
-      renderCapacity(metrics, allocation);
+      renderDashboard(metrics);
+      renderCapacity(metrics);
       renderWorkflow(metrics);
     }
 
     function switchView(view) {
       document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
       document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${view}`));
+      document.body.classList.remove('mobile-sidebar-open');
       requestAnimationFrame(()=>renderAll());
     }
 
+    function setSidebarState(collapsed) {
+      document.body.classList.toggle('sidebar-collapsed', collapsed);
+      localStorage.setItem(SIDEBAR_KEY, collapsed ? '1' : '0');
+      const btn = document.getElementById('sidebarToggle');
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      btn.textContent = collapsed ? '☰' : '☰';
+      setTimeout(renderAll, 260);
+    }
+
+    function toggleSidebar() {
+      if (window.matchMedia('(max-width: 820px)').matches) {
+        document.body.classList.toggle('mobile-sidebar-open');
+        return;
+      }
+      setSidebarState(!document.body.classList.contains('sidebar-collapsed'));
+    }
+
     function applyAllocation() {
-      if (!lastAllocation.allocation) return;
-      DEPARTMENTS.forEach(d => state.departments[d.key].hc = lastAllocation.allocation[d.key]);
+      const metrics = allMetrics();
+      const recommendedTotal = DEPARTMENTS.reduce((s,d)=>s+metrics[d.key].recommendedHCWithOT,0);
+      const declaredPool = number(state.meta.totalPool);
+      if (declaredPool > 0 && recommendedTotal > declaredPool) {
+        const proceed = confirm(`The recommendation needs ${recommendedTotal} HC, but the declared pool is ${declaredPool}. Apply it anyway?`);
+        if (!proceed) return;
+      }
+      DEPARTMENTS.forEach(d => state.departments[d.key].hc = metrics[d.key].recommendedHCWithOT);
       document.querySelectorAll('[data-path]').forEach(el => { if (el.dataset.path.endsWith('.hc')) el.value = getPath(state,el.dataset.path); });
-      saveState(); renderAll(); showToast('Recommended headcount applied to the plan.');
+      saveState(); renderAll(); showToast('Recommended HC with controlled OT applied.');
     }
 
     function exportPlan() {
-      const payload = { app:'Warehouse Capacity Planning', version:'1.0', exportedAt:new Date().toISOString(), state };
+      const payload = { app:'Warehouse Capacity Planning', version:'1.2', exportedAt:new Date().toISOString(), state };
       const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`warehouse-plan-${state.meta.planDate || 'date'}.json`; a.click(); URL.revokeObjectURL(a.href);
     }
     function importPlan(file) {
       const reader=new FileReader();
       reader.onload=()=>{
-        try { const parsed=JSON.parse(reader.result); state=mergeDeep(defaultState,parsed.state || parsed); saveState(); document.querySelectorAll('[data-path]').forEach(el=>el.value=getPath(state,el.dataset.path) ?? ''); renderAll(); showToast('Plan imported successfully.'); }
+        try { const parsed=JSON.parse(reader.result); state=enforceOperationalRules(mergeDeep(defaultState,parsed.state || parsed)); saveState(); document.querySelectorAll('[data-path]').forEach(el=>el.value=getPath(state,el.dataset.path) ?? ''); renderAll(); showToast('Plan imported successfully.'); }
         catch(e){ showToast('Invalid plan file.'); }
       };
       reader.readAsText(file);
     }
     function resetPlan() {
-      if (!confirm('Reset all planning data and standards to the Version 1.0 defaults?')) return;
+      if (!confirm('Reset all planning data and standards to the Version 1.2 defaults?')) return;
       state=clone(defaultState); saveState(); document.querySelectorAll('[data-path]').forEach(el=>el.value=getPath(state,el.dataset.path) ?? ''); renderAll(); showToast('Plan reset to defaults.');
     }
     function showToast(message) { const t=document.getElementById('toast'); t.textContent=message; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2400); }
@@ -1129,17 +1235,24 @@
     function init() {
       createPlanningCards();
       bindInputs();
+      const savedCollapsed = localStorage.getItem(SIDEBAR_KEY) === '1';
+      if (!window.matchMedia('(max-width: 820px)').matches) setSidebarState(savedCollapsed);
+      document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
+      document.getElementById('sidebarBackdrop').addEventListener('click',()=>document.body.classList.remove('mobile-sidebar-open'));
       document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>switchView(btn.dataset.view)));
       document.getElementById('printBtn').addEventListener('click',()=>window.print());
       document.getElementById('exportBtn').addEventListener('click',exportPlan);
       document.getElementById('importFile').addEventListener('change',e=>{if(e.target.files[0]) importPlan(e.target.files[0]); e.target.value='';});
       document.getElementById('resetBtn').addEventListener('click',resetPlan);
       document.getElementById('applyAllocationBtn').addEventListener('click',applyAllocation);
-      ['simDept','simExtraHC','simOT'].forEach(id=>document.getElementById(id).addEventListener('input',()=>renderSimulator(allMetrics())));
-      window.addEventListener('resize',()=>{clearTimeout(window.__chartTimer);window.__chartTimer=setTimeout(renderAll,120);});
+      window.addEventListener('resize',()=>{
+        if (!window.matchMedia('(max-width: 820px)').matches) document.body.classList.remove('mobile-sidebar-open');
+        clearTimeout(window.__chartTimer);window.__chartTimer=setTimeout(renderAll,120);
+      });
       renderAll();
       saveState();
     }
+
     init();
   </script>
 </body>
