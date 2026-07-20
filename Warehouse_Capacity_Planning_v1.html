@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light" />
+  <title>Warehouse Capacity Planning v1.0</title>
+  <style>
+    :root {
+      --bg: #f4f7f5;
+      --panel: #ffffff;
+      --panel-2: #f8fbf9;
+      --text: #193129;
+      --muted: #6a7f76;
+      --line: #dce8e1;
+      --primary: #1f7a55;
+      --primary-2: #3fa37a;
+      --primary-soft: #e6f5ee;
+      --good: #16794f;
+      --good-soft: #e4f5ed;
+      --warn: #a86a00;
+      --warn-soft: #fff4d6;
+      --bad: #b63b3b;
+      --bad-soft: #fde9e9;
+      --info: #2c67a7;
+      --info-soft: #e9f2fc;
+      --shadow: 0 10px 30px rgba(26, 74, 54, 0.08);
+      --radius: 18px;
+      --radius-sm: 12px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(93, 181, 140, 0.12), transparent 28%),
+        linear-gradient(180deg, #f8fbf9 0%, var(--bg) 100%);
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .hidden { display: none !important; }
+
+    .app-shell { min-height: 100vh; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 22px;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(220,232,225,0.9);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      box-shadow: 0 8px 20px rgba(31, 122, 85, 0.22);
+    }
+    .brand-copy h1 { margin: 0; font-size: 18px; line-height: 1.2; }
+    .brand-copy p { margin: 3px 0 0; font-size: 12px; color: var(--muted); }
+
+    .top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .save-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+    }
+    .save-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--text);
+      padding: 9px 13px;
+      border-radius: 11px;
+      font-weight: 700;
+      transition: 0.2s ease;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(26,74,54,.09); }
+    .btn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn.soft { background: var(--primary-soft); color: var(--primary); border-color: transparent; }
+    .btn.danger { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
+    .btn.icon { padding: 9px 11px; }
+
+    .layout { display: grid; grid-template-columns: 238px minmax(0,1fr); min-height: calc(100vh - 74px); }
+    .sidebar {
+      padding: 20px 14px;
+      border-right: 1px solid var(--line);
+      background: rgba(248,251,249,0.78);
+    }
+    .nav-title { padding: 0 11px 8px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .nav-btn {
+      width: 100%;
+      border: 0;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 12px 13px;
+      margin-bottom: 6px;
+      border-radius: 12px;
+      background: transparent;
+      color: #486158;
+      font-weight: 700;
+      text-align: left;
+    }
+    .nav-btn:hover { background: #edf5f0; color: var(--primary); }
+    .nav-btn.active { background: var(--primary-soft); color: var(--primary); }
+    .nav-icon { width: 24px; text-align: center; }
+
+    .sidebar-note {
+      margin-top: 24px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    main { min-width: 0; padding: 24px; }
+    .view { display: none; animation: fade .22s ease; }
+    .view.active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    .page-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .page-head h2 { margin: 0; font-size: 27px; }
+    .page-head p { margin: 7px 0 0; color: var(--muted); max-width: 850px; line-height: 1.55; }
+    .page-meta { color: var(--muted); font-size: 13px; text-align: right; white-space: nowrap; }
+
+    .grid { display: grid; gap: 16px; }
+    .grid.kpi { grid-template-columns: repeat(4, minmax(0,1fr)); }
+    .grid.two { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .grid.depts { grid-template-columns: repeat(4, minmax(230px,1fr)); }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      min-width: 0;
+    }
+    .card.flat { box-shadow: none; }
+    .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .card-head h3 { margin: 0; font-size: 16px; }
+    .card-head p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+
+    .kpi-card { position: relative; overflow: hidden; }
+    .kpi-card::after {
+      content: "";
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      right: -35px;
+      top: -35px;
+      border-radius: 50%;
+      background: var(--primary-soft);
+    }
+    .kpi-label { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .kpi-value { margin-top: 8px; font-size: 29px; font-weight: 850; letter-spacing: -.03em; }
+    .kpi-sub { margin-top: 7px; font-size: 12px; color: var(--muted); }
+    .kpi-sub strong { color: var(--text); }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .status-pill.good { background: var(--good-soft); color: var(--good); }
+    .status-pill.warn { background: var(--warn-soft); color: var(--warn); }
+    .status-pill.bad { background: var(--bad-soft); color: var(--bad); }
+    .status-pill.info { background: var(--info-soft); color: var(--info); }
+
+    .progress { width: 100%; height: 9px; background: #ecf2ee; border-radius: 999px; overflow: hidden; }
+    .progress > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--primary-2), var(--primary)); transition: width .35s ease; }
+    .progress.warn > span { background: linear-gradient(90deg, #e7b74c, #b87906); }
+    .progress.bad > span { background: linear-gradient(90deg, #e78080, #b63b3b); }
+
+    .metric-list { display: grid; gap: 10px; margin-top: 15px; }
+    .metric-row { display: flex; justify-content: space-between; gap: 14px; font-size: 12px; color: var(--muted); }
+    .metric-row strong { color: var(--text); text-align: right; }
+
+    .dept-card { border-top: 4px solid var(--primary-2); }
+    .dept-name { display: flex; align-items: center; gap: 10px; }
+    .dept-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: var(--primary-soft); }
+    .dept-load { font-size: 26px; font-weight: 850; margin: 14px 0 4px; }
+    .dept-caption { color: var(--muted); font-size: 12px; }
+
+    .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 13px; }
+    .form-group { min-width: 0; }
+    .form-group.span-2 { grid-column: span 2; }
+    .form-group.span-4 { grid-column: span 4; }
+    label { display: block; margin-bottom: 6px; color: #52685f; font-size: 12px; font-weight: 750; }
+    .help { display: block; color: var(--muted); font-size: 11px; margin-top: 5px; line-height: 1.35; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #cfddd5;
+      border-radius: 11px;
+      padding: 10px 11px;
+      background: white;
+      color: var(--text);
+      outline: none;
+      transition: .15s ease;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--primary-2); box-shadow: 0 0 0 3px rgba(63,163,122,.12); }
+    input[readonly] { background: #f4f7f5; color: var(--muted); }
+    textarea { min-height: 86px; resize: vertical; }
+
+    .planning-card { padding: 0; overflow: hidden; }
+    .planning-title { padding: 16px 18px; background: linear-gradient(90deg, #f2faf5, white); border-bottom: 1px solid var(--line); }
+    .planning-title h3 { margin: 0; }
+    .planning-title p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .planning-body { padding: 18px; }
+
+    .table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+    table { width: 100%; border-collapse: collapse; min-width: 820px; }
+    th, td { padding: 12px 13px; border-bottom: 1px solid var(--line); text-align: left; font-size: 12px; vertical-align: middle; }
+    th { background: #f4f8f6; color: #52685f; font-size: 11px; letter-spacing: .02em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    td strong { color: var(--text); }
+
+    .recommendations { display: grid; gap: 10px; }
+    .recommendation {
+      display: grid;
+      grid-template-columns: 38px minmax(0,1fr);
+      gap: 11px;
+      padding: 13px;
+      border-radius: 13px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+    }
+    .rec-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; background: white; font-size: 18px; }
+    .recommendation h4 { margin: 1px 0 4px; font-size: 13px; }
+    .recommendation p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.48; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(9, auto);
+      align-items: stretch;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .flow-stage {
+      min-width: 175px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: white;
+    }
+    .flow-stage h4 { margin: 9px 0 4px; }
+    .flow-stage p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .flow-arrow { display: grid; place-items: center; color: var(--primary); font-size: 22px; font-weight: 800; }
+    .flow-number { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 10px; background: var(--primary-soft); color: var(--primary); font-weight: 850; }
+
+    .process-notes { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-top: 16px; }
+    .process-note { padding: 14px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 13px; }
+    .process-note h4 { margin: 0 0 6px; font-size: 13px; }
+    .process-note p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+    canvas { width: 100%; height: 260px; display: block; }
+    .chart-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; color: var(--muted); font-size: 11px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--primary); }
+    .legend-swatch.alt { background: #9ccdb5; }
+    .legend-swatch.bad { background: var(--bad); }
+
+    .notice { padding: 13px 15px; border-radius: 13px; background: var(--info-soft); color: #315f8e; font-size: 12px; line-height: 1.5; border: 1px solid #d5e6f7; }
+    .notice.warning { background: var(--warn-soft); color: #835600; border-color: #f2dfac; }
+
+    .storage-meter { display: grid; grid-template-columns: 150px minmax(0,1fr); gap: 18px; align-items: center; }
+    .donut {
+      --p: 0;
+      width: 135px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: conic-gradient(var(--primary) calc(var(--p) * 1%), #e8f0eb 0);
+      position: relative;
+    }
+    .donut::after { content: ""; width: 96px; aspect-ratio: 1; border-radius: 50%; background: white; position: absolute; }
+    .donut-value { position: relative; z-index: 1; font-size: 24px; font-weight: 850; }
+
+    .footer { color: var(--muted); font-size: 11px; text-align: center; padding: 20px 0 4px; }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 50;
+      padding: 12px 15px;
+      background: #183c2f;
+      color: white;
+      border-radius: 12px;
+      box-shadow: 0 12px 30px rgba(0,0,0,.18);
+      font-size: 12px;
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: .25s ease;
+    }
+    .toast.show { opacity: 1; transform: none; }
+
+    @media (max-width: 1180px) {
+      .grid.kpi, .grid.depts { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .form-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .form-group.span-4 { grid-column: span 2; }
+      .process-notes { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    }
+
+    @media (max-width: 820px) {
+      .topbar { padding: 12px 14px; align-items: flex-start; }
+      .brand-copy p, .save-status { display: none; }
+      .layout { grid-template-columns: 1fr; }
+      .sidebar {
+        position: sticky;
+        top: 69px;
+        z-index: 15;
+        display: flex;
+        overflow-x: auto;
+        padding: 8px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        background: rgba(248,251,249,.96);
+      }
+      .nav-title, .sidebar-note { display: none; }
+      .nav-btn { flex: 0 0 auto; width: auto; margin: 0 4px 0 0; padding: 10px 12px; }
+      main { padding: 17px 13px; }
+      .page-head { flex-direction: column; }
+      .page-meta { text-align: left; }
+      .grid.two, .grid.three, .grid.kpi, .grid.depts { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-group.span-2, .form-group.span-4 { grid-column: span 1; }
+      .process-notes { grid-template-columns: 1fr; }
+      .storage-meter { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+    }
+
+    @media print {
+      body { background: white; }
+      .topbar, .sidebar, .btn, .footer { display: none !important; }
+      .layout { display: block; }
+      main { padding: 0; }
+      .view { display: block !important; page-break-after: always; }
+      .card { box-shadow: none; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">WC</div>
+        <div class="brand-copy">
+          <h1>Warehouse Capacity Planning</h1>
+          <p>End-to-end process review, manpower allocation, and milestone control</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="save-status"><span class="save-dot"></span><span id="saveStatus">Auto-save ready</span></span>
+        <button class="btn soft" id="printBtn">Print Report</button>
+        <button class="btn" id="exportBtn">Export Plan</button>
+        <label class="btn" for="importFile">Import Plan</label>
+        <input class="hidden" id="importFile" type="file" accept="application/json" />
+        <button class="btn danger" id="resetBtn">Reset</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="nav-title">Workspace</div>
+        <button class="nav-btn active" data-view="dashboard"><span class="nav-icon">📊</span>Dashboard</button>
+        <button class="nav-btn" data-view="planning"><span class="nav-icon">📝</span>Daily Planning</button>
+        <button class="nav-btn" data-view="capacity"><span class="nav-icon">🧮</span>Capacity & Allocation</button>
+        <button class="nav-btn" data-view="workflow"><span class="nav-icon">🔄</span>Process & Milestones</button>
+        <button class="nav-btn" data-view="settings"><span class="nav-icon">⚙️</span>Standards</button>
+        <div class="sidebar-note">
+          <strong>Planning rule</strong><br />
+          Review volume, manpower, time, and handoff capacity together. A department is not truly “on plan” when it only pushes excess work to the next process.
+        </div>
+      </aside>
+
+      <main>
+        <section class="view active" id="view-dashboard">
+          <div class="page-head">
+            <div>
+              <h2>Operations Dashboard</h2>
+              <p>Today’s readiness across Inbound, QC, Fulfillment, and Outbound, with storage risk and the expected backlog if no corrective action is taken.</p>
+            </div>
+            <div class="page-meta"><strong id="dashDate">—</strong><br /><span id="dashShift">—</span></div>
+          </div>
+
+          <div class="grid kpi">
+            <div class="card kpi-card">
+              <div class="kpi-label">Total Planned Workload</div>
+              <div class="kpi-value" id="kpiWorkload">0</div>
+              <div class="kpi-sub">Across four operating departments</div>
+            </div>
+            <div class="card kpi-card">
+              <div class="kpi-label">Available Manpower</div>
+              <div class="kpi-value" id="kpiManpower">0</div>
+              <div class="kpi-sub"><strong id="kpiRequired">0 required</strong> at current standards</div>
+            </div>
+            <div class="card kpi-card">
+              <div class="kpi-label">Projected End-of-Day Backlog</div>
+              <div class="kpi-value" id="kpiBacklog">0</div>
+              <div class="kpi-sub" id="kpiBacklogNote">No projected backlog</div>
+            </div>
+            <div class="card kpi-card">
+              <div class="kpi-label">Primary Bottleneck</div>
+              <div class="kpi-value" id="kpiBottleneck">—</div>
+              <div class="kpi-sub" id="kpiBottleneckNote">Enter today’s plan</div>
+            </div>
+          </div>
+
+          <div class="grid depts" id="deptCards" style="margin-top:16px"></div>
+
+          <div class="grid two" style="margin-top:16px">
+            <div class="card">
+              <div class="card-head">
+                <div><h3>Workload vs Daily Capacity</h3><p>Current manpower and selected shift assumptions</p></div>
+                <span class="status-pill info">Pieces</span>
+              </div>
+              <canvas id="capacityChart" width="900" height="300"></canvas>
+              <div class="chart-legend">
+                <span class="legend-item"><span class="legend-swatch alt"></span>Workload</span>
+                <span class="legend-item"><span class="legend-swatch"></span>Capacity</span>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head">
+                <div><h3>Smart Recommendations</h3><p>Actions are generated from capacity gaps and process dependencies</p></div>
+              </div>
+              <div class="recommendations" id="recommendations"></div>
+            </div>
+          </div>
+
+          <div class="grid two" style="margin-top:16px">
+            <div class="card">
+              <div class="card-head">
+                <div><h3>Backlog Outlook</h3><p>Three-day projection if the same daily workload and current manpower continue</p></div>
+              </div>
+              <canvas id="backlogChart" width="900" height="300"></canvas>
+              <div class="chart-legend"><span class="legend-item"><span class="legend-swatch bad"></span>Projected backlog</span></div>
+            </div>
+            <div class="card">
+              <div class="card-head">
+                <div><h3>Storage Readiness</h3><p>Rack utilization and pending put-away monitoring</p></div>
+                <span id="storageStatus" class="status-pill good">Healthy</span>
+              </div>
+              <div class="storage-meter">
+                <div class="donut" id="storageDonut"><div class="donut-value" id="storagePct">0%</div></div>
+                <div class="metric-list" style="width:100%; margin:0">
+                  <div class="metric-row"><span>Occupied locations</span><strong id="storageOccupied">0</strong></div>
+                  <div class="metric-row"><span>Total locations</span><strong id="storageTotal">0</strong></div>
+                  <div class="metric-row"><span>Free locations</span><strong id="storageFree">0</strong></div>
+                  <div class="metric-row"><span>Pending put-away</span><strong id="storagePending">0 pcs</strong></div>
+                </div>
+              </div>
+              <div class="notice warning" id="storageNote" style="margin-top:15px">Enter rack capacity and occupancy to assess storage risk.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-planning">
+          <div class="page-head">
+            <div>
+              <h2>Daily Planning</h2>
+              <p>Enter today’s volume, carryover backlog, assigned manpower, and actual progress. All fields auto-save in this browser.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><div><h3>Planning Assumptions</h3><p>Used by all department calculations</p></div></div>
+            <div class="form-grid">
+              <div class="form-group"><label for="planDate">Plan date</label><input id="planDate" type="date" data-path="meta.planDate" /></div>
+              <div class="form-group"><label for="shiftStart">Shift start</label><input id="shiftStart" type="time" data-path="meta.shiftStart" /></div>
+              <div class="form-group"><label for="shiftHours">Regular shift hours</label><input id="shiftHours" type="number" min="1" max="24" step="0.5" data-path="meta.shiftHours" /></div>
+              <div class="form-group"><label for="efficiency">Planning efficiency</label><input id="efficiency" type="number" min="50" max="120" step="1" data-path="meta.efficiency" /><span class="help">Use 85–95% when allowing for breaks, meetings, and normal delays.</span></div>
+              <div class="form-group"><label for="totalPool">Total warehouse HC available</label><input id="totalPool" type="number" min="0" step="1" data-path="meta.totalPool" /><span class="help">Used for recommended team allocation. Leave at 0 to use assigned HC total.</span></div>
+              <div class="form-group"><label for="priorityMode">Priority mode</label><select id="priorityMode" data-path="meta.priorityMode"><option value="balanced">Balanced end-to-end flow</option><option value="receiving">Receiving / inbound priority</option><option value="fulfillment">Fulfillment priority</option><option value="dispatch">Dispatch cutoff priority</option></select></div>
+              <div class="form-group"><label for="dispatchCutoff">Dispatch cutoff</label><input id="dispatchCutoff" type="time" data-path="meta.dispatchCutoff" /></div>
+              <div class="form-group"><label for="planningNotes">Planning notes</label><input id="planningNotes" type="text" placeholder="Promotion, container arrival, store cutoff, etc." data-path="meta.notes" /></div>
+            </div>
+          </div>
+
+          <div class="grid two" style="margin-top:16px" id="planningDepartments"></div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-head"><div><h3>Storage and Put-away</h3><p>Storage is monitored by space availability and pending put-away volume.</p></div></div>
+            <div class="form-grid">
+              <div class="form-group"><label>Total rack / bin locations</label><input type="number" min="0" data-path="storage.totalLocations" /></div>
+              <div class="form-group"><label>Occupied locations</label><input type="number" min="0" data-path="storage.occupiedLocations" /></div>
+              <div class="form-group"><label>Pending put-away (pcs)</label><input type="number" min="0" data-path="storage.pendingPutaway" /></div>
+              <div class="form-group"><label>Put-away owners / HC</label><input type="number" min="0" data-path="storage.putawayHC" /></div>
+              <div class="form-group span-4"><label>Storage constraints / notes</label><textarea data-path="storage.notes" placeholder="Blocked aisles, temporary staging, slow-moving stock, location constraints..."></textarea></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-capacity">
+          <div class="page-head">
+            <div>
+              <h2>Capacity & Team Allocation</h2>
+              <p>Compares required capacity against assigned headcount, estimates overtime, and proposes a manpower allocation that protects the end-to-end flow.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><div><h3>Department Capacity Summary</h3><p>Required HC is rounded up to the next whole person.</p></div><button class="btn primary" id="applyAllocationBtn">Apply Recommended HC</button></div>
+            <div class="table-wrap"><table><thead><tr><th>Department</th><th>Total Workload</th><th>Assigned HC</th><th>Daily Capacity</th><th>Utilization</th><th>Required HC</th><th>HC Gap</th><th>OT Needed</th><th>Recommended HC</th></tr></thead><tbody id="capacityTable"></tbody></table></div>
+          </div>
+
+          <div class="grid two" style="margin-top:16px">
+            <div class="card">
+              <div class="card-head"><div><h3>Allocation Rationale</h3><p>Why the suggested team preparation was selected</p></div></div>
+              <div class="recommendations" id="allocationRationale"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h3>What-if Simulator</h3><p>Test extra manpower or overtime before changing the saved plan</p></div></div>
+              <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+                <div class="form-group"><label>Department</label><select id="simDept"></select></div>
+                <div class="form-group"><label>Additional HC</label><input id="simExtraHC" type="number" min="0" value="0" /></div>
+                <div class="form-group"><label>Overtime hours</label><input id="simOT" type="number" min="0" step="0.5" value="0" /></div>
+                <div class="form-group"><label>Expected capacity</label><input id="simCapacity" readonly /></div>
+                <div class="form-group"><label>Projected backlog</label><input id="simBacklog" readonly /></div>
+                <div class="form-group"><label>Result</label><input id="simResult" readonly /></div>
+              </div>
+              <div class="notice" id="simNote" style="margin-top:14px">Choose a department and test a scenario.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-workflow">
+          <div class="page-head">
+            <div>
+              <h2>Process Review & Milestones</h2>
+              <p>The plan follows the physical warehouse flow. Capacity must be balanced at every handoff to prevent queues, congestion, rework, and missed dispatch.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><div><h3>End-to-End Warehouse Flow</h3><p>Each stage has a different control point and failure risk.</p></div></div>
+            <div class="flow">
+              <div class="flow-stage"><div class="flow-number">1</div><h4>Inbound Receiving</h4><p>Unload, count, document, and stage. Control arrival sequence and receiving completion.</p></div>
+              <div class="flow-arrow">→</div>
+              <div class="flow-stage"><div class="flow-number">2</div><h4>Quality Control</h4><p>Inspect and release good stock. Isolate variance, damage, or failed items quickly.</p></div>
+              <div class="flow-arrow">→</div>
+              <div class="flow-stage"><div class="flow-number">3</div><h4>Put-away / Storage</h4><p>Protect location availability, avoid staging congestion, and maintain stock accessibility.</p></div>
+              <div class="flow-arrow">→</div>
+              <div class="flow-stage"><div class="flow-number">4</div><h4>Fulfillment</h4><p>Pick, consolidate, and complete requests using released and location-ready stock.</p></div>
+              <div class="flow-arrow">→</div>
+              <div class="flow-stage"><div class="flow-number">5</div><h4>Outbound</h4><p>Verify, pack, document, stage, and dispatch before the cutoff.</p></div>
+            </div>
+            <div class="process-notes">
+              <div class="process-note"><h4>Inbound requirement</h4><p>Plan by arrival volume, unloading window, staging space, and receiving HC. Excess receiving without QC capacity creates a queue.</p></div>
+              <div class="process-note"><h4>QC requirement</h4><p>QC has the lowest hourly standard, so it commonly becomes the release bottleneck. Prepare inspection space and escalation rules.</p></div>
+              <div class="process-note"><h4>Fulfillment requirement</h4><p>Use demand volume, backlog, pick path, and stock readiness. Protect enough HC to prevent store or customer requests from rolling over.</p></div>
+              <div class="process-note"><h4>Outbound requirement</h4><p>Work backward from dispatch cutoff. Packing and document completion should be ahead of vehicle loading time.</p></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-head"><div><h3>Department Milestone Tracker</h3><p>Expected cumulative completion by shift checkpoint versus actual completed quantity.</p></div></div>
+            <div class="table-wrap"><table><thead><tr><th>Department</th><th>25% Checkpoint</th><th>50% Checkpoint</th><th>75% Checkpoint</th><th>End of Shift</th><th>Actual Completed</th><th>Current Target</th><th>Variance</th><th>Status</th></tr></thead><tbody id="milestoneTable"></tbody></table></div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-head"><div><h3>Handoff Risk Review</h3><p>Flags when an upstream department can produce faster than the next stage can absorb.</p></div></div>
+            <div class="recommendations" id="handoffRisks"></div>
+          </div>
+        </section>
+
+        <section class="view" id="view-settings">
+          <div class="page-head">
+            <div>
+              <h2>Capacity Standards</h2>
+              <p>Version 1.0 starts with the locked standards discussed. Edit only when validated against actual operation data.</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="notice warning">Changes here affect every dashboard, required HC, overtime, backlog, milestone, and allocation result.</div>
+            <div class="form-grid" style="margin-top:16px">
+              <div class="form-group"><label>Inbound standard (pcs/hour/person)</label><input type="number" min="1" data-path="standards.inbound" /></div>
+              <div class="form-group"><label>QC standard (pcs/hour/person)</label><input type="number" min="1" data-path="standards.qc" /></div>
+              <div class="form-group"><label>Fulfillment standard (pcs/day/person)</label><input type="number" min="1" data-path="standards.fulfillment" /></div>
+              <div class="form-group"><label>Outbound standard (pcs/hour/person)</label><input type="number" min="1" data-path="standards.outbound" /></div>
+              <div class="form-group"><label>Fulfillment base day (hours)</label><input type="number" min="1" max="24" step="0.5" data-path="standards.fulfillmentBaseHours" /></div>
+              <div class="form-group"><label>Rack warning level (%)</label><input type="number" min="1" max="100" data-path="standards.rackWarning" /></div>
+              <div class="form-group"><label>Rack critical level (%)</label><input type="number" min="1" max="100" data-path="standards.rackCritical" /></div>
+              <div class="form-group"><label>Green utilization ceiling (%)</label><input type="number" min="1" max="100" data-path="standards.greenUtilization" /></div>
+            </div>
+            <div class="card-head" style="margin-top:18px"><div><h3>Current Locked Reference</h3><p>Original standards agreed for the first version.</p></div></div>
+            <div class="table-wrap"><table><thead><tr><th>Department</th><th>Reference Standard</th><th>Planning Purpose</th></tr></thead><tbody>
+              <tr><td><strong>Inbound</strong></td><td>300 pcs/hr/person</td><td>Receiving and unloading capacity</td></tr>
+              <tr><td><strong>QC</strong></td><td>50 pcs/hr/person</td><td>Inspection and stock release capacity</td></tr>
+              <tr><td><strong>Fulfillment</strong></td><td>700 pcs/day/person</td><td>Picking and order completion capacity</td></tr>
+              <tr><td><strong>Outbound</strong></td><td>200 pcs/hr/person</td><td>Packing, verification, and dispatch preparation</td></tr>
+              <tr><td><strong>Storage</strong></td><td>Rack utilization + put-away monitoring</td><td>Space readiness and congestion control</td></tr>
+            </tbody></table></div>
+          </div>
+        </section>
+
+        <div class="footer">Warehouse Capacity Planning v1.0 · Data is stored only in this browser unless exported.</div>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = 'warehouse_capacity_planning_v1';
+    const DEPARTMENTS = [
+      { key: 'inbound', label: 'Inbound', icon: '📥', unit: 'pcs', standardLabel: 'pcs/hr/person' },
+      { key: 'qc', label: 'QC', icon: '🔎', unit: 'pcs', standardLabel: 'pcs/hr/person' },
+      { key: 'fulfillment', label: 'Fulfillment', icon: '🛒', unit: 'pcs', standardLabel: 'pcs/day/person' },
+      { key: 'outbound', label: 'Outbound', icon: '🚚', unit: 'pcs', standardLabel: 'pcs/hr/person' }
+    ];
+
+    const defaultState = {
+      meta: {
+        planDate: new Date().toISOString().slice(0,10),
+        shiftStart: '08:00',
+        shiftHours: 8,
+        efficiency: 90,
+        totalPool: 0,
+        priorityMode: 'balanced',
+        dispatchCutoff: '17:00',
+        notes: ''
+      },
+      standards: {
+        inbound: 300,
+        qc: 50,
+        fulfillment: 700,
+        outbound: 200,
+        fulfillmentBaseHours: 8,
+        rackWarning: 85,
+        rackCritical: 95,
+        greenUtilization: 85
+      },
+      departments: {
+        inbound: { planned: 0, backlog: 0, hc: 0, actual: 0, notes: '' },
+        qc: { planned: 0, backlog: 0, hc: 0, actual: 0, notes: '' },
+        fulfillment: { planned: 0, backlog: 0, hc: 0, actual: 0, notes: '' },
+        outbound: { planned: 0, backlog: 0, hc: 0, actual: 0, notes: '' }
+      },
+      storage: { totalLocations: 0, occupiedLocations: 0, pendingPutaway: 0, putawayHC: 0, notes: '' }
+    };
+
+    let state = loadState();
+    let lastAllocation = {};
+    let saveTimer;
+
+    function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
+    function mergeDeep(base, incoming) {
+      const out = clone(base);
+      Object.keys(incoming || {}).forEach(key => {
+        if (incoming[key] && typeof incoming[key] === 'object' && !Array.isArray(incoming[key]) && out[key]) {
+          out[key] = mergeDeep(out[key], incoming[key]);
+        } else {
+          out[key] = incoming[key];
+        }
+      });
+      return out;
+    }
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? mergeDeep(defaultState, JSON.parse(raw)) : clone(defaultState);
+      } catch (e) { return clone(defaultState); }
+    }
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const status = document.getElementById('saveStatus');
+      status.textContent = 'Saved ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    }
+    function queueSave() {
+      const status = document.getElementById('saveStatus');
+      status.textContent = 'Saving…';
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveState, 250);
+    }
+    function getPath(obj, path) { return path.split('.').reduce((acc, key) => acc?.[key], obj); }
+    function setPath(obj, path, value) {
+      const keys = path.split('.');
+      const last = keys.pop();
+      const target = keys.reduce((acc, key) => acc[key], obj);
+      target[last] = value;
+    }
+    function number(v) { return Number(v) || 0; }
+    function fmt(v, digits = 0) { return Number(v || 0).toLocaleString(undefined, {maximumFractionDigits: digits}); }
+    function pct(v) { return Number.isFinite(v) ? Math.round(v) + '%' : '0%'; }
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+    function escapeHTML(s='') { return String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+
+    function createPlanningCards() {
+      const host = document.getElementById('planningDepartments');
+      host.innerHTML = DEPARTMENTS.map(d => `
+        <div class="card planning-card">
+          <div class="planning-title"><h3>${d.icon} ${d.label}</h3><p>Plan workload, carryover, manpower, and completed quantity.</p></div>
+          <div class="planning-body">
+            <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+              <div class="form-group"><label>New workload (${d.unit})</label><input type="number" min="0" data-path="departments.${d.key}.planned" /></div>
+              <div class="form-group"><label>Carryover backlog (${d.unit})</label><input type="number" min="0" data-path="departments.${d.key}.backlog" /></div>
+              <div class="form-group"><label>Assigned HC</label><input type="number" min="0" step="1" data-path="departments.${d.key}.hc" /></div>
+              <div class="form-group"><label>Actual completed (${d.unit})</label><input type="number" min="0" data-path="departments.${d.key}.actual" /></div>
+              <div class="form-group" style="grid-column:span 2"><label>Department notes</label><textarea data-path="departments.${d.key}.notes" placeholder="Constraints, expected arrivals, priorities, exceptions..."></textarea></div>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    function bindInputs() {
+      document.querySelectorAll('[data-path]').forEach(el => {
+        const val = getPath(state, el.dataset.path);
+        el.value = val ?? '';
+        el.addEventListener('input', () => {
+          let value = el.value;
+          if (el.type === 'number') value = number(value);
+          setPath(state, el.dataset.path, value);
+          queueSave();
+          renderAll();
+        });
+        el.addEventListener('change', () => {
+          let value = el.value;
+          if (el.type === 'number') value = number(value);
+          setPath(state, el.dataset.path, value);
+          queueSave();
+          renderAll();
+        });
+      });
+    }
+
+    function standardFor(key) { return number(state.standards[key]); }
+    function hourlyRate(key) {
+      if (key === 'fulfillment') return standardFor(key) / Math.max(1, number(state.standards.fulfillmentBaseHours));
+      return standardFor(key);
+    }
+    function deptMetrics(key) {
+      const d = state.departments[key];
+      const workload = number(d.planned) + number(d.backlog);
+      const hc = number(d.hc);
+      const hours = Math.max(0, number(state.meta.shiftHours));
+      const eff = Math.max(0, number(state.meta.efficiency)) / 100;
+      const rate = hourlyRate(key);
+      const capacity = hc * hours * rate * eff;
+      const perPersonCapacity = hours * rate * eff;
+      const requiredHC = workload > 0 && perPersonCapacity > 0 ? Math.ceil(workload / perPersonCapacity) : 0;
+      const utilization = capacity > 0 ? workload / capacity * 100 : (workload > 0 ? 999 : 0);
+      const backlog = Math.max(0, workload - capacity);
+      const surplus = Math.max(0, capacity - workload);
+      const completionHours = hc > 0 && rate > 0 && eff > 0 ? workload / (hc * rate * eff) : 0;
+      const otNeeded = hc > 0 && rate > 0 && eff > 0 ? backlog / (hc * rate * eff) : (backlog > 0 ? Infinity : 0);
+      return { key, workload, hc, hours, eff, rate, capacity, perPersonCapacity, requiredHC, utilization, backlog, surplus, completionHours, otNeeded, actual: number(d.actual) };
+    }
+
+    function allMetrics() { return Object.fromEntries(DEPARTMENTS.map(d => [d.key, deptMetrics(d.key)])); }
+
+    function statusFromUtil(util) {
+      const green = number(state.standards.greenUtilization) || 85;
+      if (util <= green) return { cls:'good', text:'Ready' };
+      if (util <= 100) return { cls:'warn', text:'Tight' };
+      return { cls:'bad', text:'Over Capacity' };
+    }
+
+    function priorityWeights() {
+      const mode = state.meta.priorityMode;
+      const weights = { inbound: 1, qc: 1.18, fulfillment: 1.25, outbound: 1.12 };
+      if (mode === 'receiving') { weights.inbound += .5; weights.qc += .35; }
+      if (mode === 'fulfillment') { weights.fulfillment += .7; weights.outbound += .25; }
+      if (mode === 'dispatch') { weights.outbound += .75; weights.fulfillment += .35; }
+      return weights;
+    }
+
+    function calculateAllocation(metrics) {
+      const available = number(state.meta.totalPool) > 0 ? Math.floor(number(state.meta.totalPool)) : Math.floor(DEPARTMENTS.reduce((s,d) => s + metrics[d.key].hc, 0));
+      const requiredTotal = DEPARTMENTS.reduce((s,d) => s + metrics[d.key].requiredHC, 0);
+      const allocation = Object.fromEntries(DEPARTMENTS.map(d => [d.key, 0]));
+      let remaining = available;
+
+      DEPARTMENTS.forEach(d => {
+        if (metrics[d.key].workload > 0 && remaining > 0) { allocation[d.key] = 1; remaining--; }
+      });
+
+      const weights = priorityWeights();
+      while (remaining > 0) {
+        const candidates = DEPARTMENTS
+          .filter(d => allocation[d.key] < metrics[d.key].requiredHC)
+          .map(d => {
+            const m = metrics[d.key];
+            const currentCap = allocation[d.key] * m.perPersonCapacity;
+            const unmet = Math.max(0, m.workload - currentCap);
+            const score = (unmet / Math.max(1, m.perPersonCapacity)) * weights[d.key];
+            return { key: d.key, score };
+          })
+          .sort((a,b) => b.score - a.score);
+        if (!candidates.length) break;
+        allocation[candidates[0].key]++;
+        remaining--;
+      }
+
+      lastAllocation = { available, requiredTotal, remaining, allocation };
+      return lastAllocation;
+    }
+
+    function renderDashboard(metrics, allocation) {
+      const workloadTotal = DEPARTMENTS.reduce((s,d) => s + metrics[d.key].workload, 0);
+      const manpowerTotal = DEPARTMENTS.reduce((s,d) => s + metrics[d.key].hc, 0);
+      const requiredTotal = DEPARTMENTS.reduce((s,d) => s + metrics[d.key].requiredHC, 0);
+      const backlogTotal = DEPARTMENTS.reduce((s,d) => s + metrics[d.key].backlog, 0);
+      const bottleneck = [...DEPARTMENTS].sort((a,b) => metrics[b.key].utilization - metrics[a.key].utilization)[0];
+      const bottleneckM = bottleneck ? metrics[bottleneck.key] : null;
+
+      document.getElementById('kpiWorkload').textContent = fmt(workloadTotal);
+      document.getElementById('kpiManpower').textContent = fmt(manpowerTotal);
+      document.getElementById('kpiRequired').textContent = `${fmt(requiredTotal)} required`;
+      document.getElementById('kpiBacklog').textContent = fmt(backlogTotal);
+      document.getElementById('kpiBacklogNote').textContent = backlogTotal ? 'Corrective action required today' : 'No projected backlog';
+      document.getElementById('kpiBottleneck').textContent = workloadTotal ? bottleneck.label : '—';
+      document.getElementById('kpiBottleneckNote').textContent = workloadTotal ? `${pct(bottleneckM.utilization)} utilized · ${fmt(bottleneckM.backlog)} pcs risk` : 'Enter today’s plan';
+      const date = new Date(state.meta.planDate + 'T00:00:00');
+      document.getElementById('dashDate').textContent = isNaN(date) ? state.meta.planDate : date.toLocaleDateString(undefined,{weekday:'long', year:'numeric', month:'long', day:'numeric'});
+      document.getElementById('dashShift').textContent = `${state.meta.shiftStart || '—'} start · ${fmt(state.meta.shiftHours,1)} hours · ${fmt(state.meta.efficiency)}% efficiency`;
+
+      document.getElementById('deptCards').innerHTML = DEPARTMENTS.map(d => {
+        const m = metrics[d.key];
+        const status = statusFromUtil(m.utilization);
+        const width = clamp(m.utilization,0,100);
+        return `<div class="card dept-card">
+          <div class="card-head"><div class="dept-name"><div class="dept-icon">${d.icon}</div><div><h3>${d.label}</h3><p>${fmt(standardFor(d.key))} ${d.standardLabel}</p></div></div><span class="status-pill ${status.cls}">${status.text}</span></div>
+          <div class="dept-load">${fmt(m.workload)} pcs</div><div class="dept-caption">planned workload including carryover</div>
+          <div class="progress ${status.cls === 'bad' ? 'bad' : status.cls === 'warn' ? 'warn' : ''}" style="margin-top:14px"><span style="width:${width}%"></span></div>
+          <div class="metric-list">
+            <div class="metric-row"><span>Daily capacity</span><strong>${fmt(m.capacity)} pcs</strong></div>
+            <div class="metric-row"><span>Assigned / required HC</span><strong>${fmt(m.hc)} / ${fmt(m.requiredHC)}</strong></div>
+            <div class="metric-row"><span>Projected backlog</span><strong>${fmt(m.backlog)} pcs</strong></div>
+            <div class="metric-row"><span>Recommended HC</span><strong>${fmt(allocation.allocation[d.key])}</strong></div>
+          </div>
+        </div>`;
+      }).join('');
+
+      renderRecommendations(metrics, allocation);
+      renderStorage();
+      drawCapacityChart(metrics);
+      drawBacklogChart(metrics);
+    }
+
+    function renderRecommendations(metrics, allocation) {
+      const recs = [];
+      const overloaded = DEPARTMENTS.filter(d => metrics[d.key].utilization > 100).sort((a,b) => metrics[b.key].utilization - metrics[a.key].utilization);
+      if (!overloaded.length) {
+        recs.push({icon:'✅', title:'Current plan is capacity-feasible', text:'All four departments can complete the entered workload within the regular shift at the selected planning efficiency.'});
+      } else {
+        overloaded.forEach(d => {
+          const m = metrics[d.key];
+          const gap = Math.max(0, m.requiredHC - m.hc);
+          const otText = Number.isFinite(m.otNeeded) ? `${fmt(m.otNeeded,1)} OT hours with current HC` : 'manpower must be assigned before work can start';
+          recs.push({icon:'⚠️', title:`${d.label}: add ${gap} HC or schedule OT`, text:`Projected backlog is ${fmt(m.backlog)} pcs. Minimum recovery is ${gap} additional HC for the regular shift, or approximately ${otText}.`});
+        });
+      }
+
+      const m = metrics;
+      const handoffs = [['inbound','qc'],['qc','fulfillment'],['fulfillment','outbound']];
+      handoffs.forEach(([up,down]) => {
+        if (m[up].capacity > m[down].capacity * 1.1 && m[up].workload > 0) {
+          const upLabel = DEPARTMENTS.find(d=>d.key===up).label;
+          const downLabel = DEPARTMENTS.find(d=>d.key===down).label;
+          recs.push({icon:'🔄', title:`Protect the ${upLabel} → ${downLabel} handoff`, text:`${upLabel} can process about ${fmt(m[up].capacity)} pcs, while ${downLabel} can absorb about ${fmt(m[down].capacity)} pcs. Sequence releases or rebalance HC to avoid queue build-up.`});
+        }
+      });
+
+      const rackPct = state.storage.totalLocations > 0 ? state.storage.occupiedLocations / state.storage.totalLocations * 100 : 0;
+      if (rackPct >= state.standards.rackWarning) recs.push({icon:'🏷️', title:'Storage space needs action', text:`Rack utilization is ${pct(rackPct)}. Prioritize location clearing, consolidation, and put-away completion before additional inbound volume is released.`});
+      if (allocation.available < allocation.requiredTotal) recs.push({icon:'👥', title:'Total HC pool is below requirement', text:`Available pool is ${allocation.available} versus ${allocation.requiredTotal} required. Use the proposed allocation to protect the highest-risk stages, then approve OT or additional manpower for the remaining gap.`});
+
+      document.getElementById('recommendations').innerHTML = recs.slice(0,6).map(r => `<div class="recommendation"><div class="rec-icon">${r.icon}</div><div><h4>${r.title}</h4><p>${r.text}</p></div></div>`).join('');
+    }
+
+    function renderStorage() {
+      const total = number(state.storage.totalLocations);
+      const occupied = number(state.storage.occupiedLocations);
+      const free = Math.max(0,total-occupied);
+      const use = total > 0 ? occupied/total*100 : 0;
+      const donut = document.getElementById('storageDonut');
+      donut.style.setProperty('--p', clamp(use,0,100));
+      document.getElementById('storagePct').textContent = pct(use);
+      document.getElementById('storageOccupied').textContent = fmt(occupied);
+      document.getElementById('storageTotal').textContent = fmt(total);
+      document.getElementById('storageFree').textContent = fmt(free);
+      document.getElementById('storagePending').textContent = fmt(state.storage.pendingPutaway) + ' pcs';
+      const status = document.getElementById('storageStatus');
+      const note = document.getElementById('storageNote');
+      if (!total) {
+        status.className = 'status-pill info'; status.textContent = 'No Data';
+        note.textContent = 'Enter rack capacity and occupancy to assess storage risk.';
+      } else if (use >= state.standards.rackCritical) {
+        status.className = 'status-pill bad'; status.textContent = 'Critical';
+        note.textContent = `Only ${fmt(free)} locations remain. Hold or sequence inbound releases and clear put-away backlog immediately.`;
+      } else if (use >= state.standards.rackWarning) {
+        status.className = 'status-pill warn'; status.textContent = 'Watch';
+        note.textContent = `Rack utilization is above the warning level. Prepare location recovery before accepting more stock.`;
+      } else {
+        status.className = 'status-pill good'; status.textContent = 'Healthy';
+        note.textContent = `${fmt(free)} locations are available. Continue monitoring pending put-away and blocked locations.`;
+      }
+    }
+
+    function renderCapacity(metrics, allocation) {
+      document.getElementById('capacityTable').innerHTML = DEPARTMENTS.map(d => {
+        const m = metrics[d.key];
+        const s = statusFromUtil(m.utilization);
+        const gap = m.requiredHC - m.hc;
+        const ot = !Number.isFinite(m.otNeeded) ? 'Assign HC' : `${fmt(m.otNeeded,1)} hr`;
+        return `<tr><td><strong>${d.icon} ${d.label}</strong></td><td>${fmt(m.workload)} pcs</td><td>${fmt(m.hc)}</td><td>${fmt(m.capacity)} pcs</td><td><span class="status-pill ${s.cls}">${pct(m.utilization)}</span></td><td>${fmt(m.requiredHC)}</td><td>${gap > 0 ? '+' : ''}${fmt(gap)}</td><td>${ot}</td><td><strong>${fmt(allocation.allocation[d.key])}</strong></td></tr>`;
+      }).join('');
+
+      const rationales = [];
+      const poolSource = number(state.meta.totalPool) > 0 ? 'declared warehouse HC pool' : 'currently assigned HC total';
+      rationales.push({icon:'👥', title:`Allocate ${allocation.available} HC from the ${poolSource}`, text:`The full calculated requirement is ${allocation.requiredTotal} HC. ${allocation.remaining > 0 ? `${allocation.remaining} HC remain as floaters after all requirements are covered.` : 'No unassigned HC remains after the recommendation.'}`});
+      const weights = priorityWeights();
+      const top = [...DEPARTMENTS].sort((a,b) => weights[b.key] - weights[a.key])[0];
+      rationales.push({icon:'🎯', title:`Priority mode: ${state.meta.priorityMode}`, text:`Allocation gives additional protection to ${top.label} while preserving at least one owner for each active department.`});
+      const overloaded = DEPARTMENTS.filter(d => metrics[d.key].requiredHC > allocation.allocation[d.key]);
+      if (overloaded.length) rationales.push({icon:'⏱️', title:'Capacity gap remains after reallocation', text:`${overloaded.map(d=>d.label).join(', ')} still need overtime, cross-trained support, schedule splitting, or workload deferral because the total HC pool is not enough.`});
+      else rationales.push({icon:'✅', title:'Recommended allocation covers the workload', text:'The suggested headcount can finish the entered workload within regular hours at the selected efficiency, assuming no major disruption.'});
+      rationales.push({icon:'🔄', title:'Keep the process balanced', text:'Do not maximize one department in isolation. Release work at the rate the next department can absorb to avoid staging congestion and hidden queues.'});
+      document.getElementById('allocationRationale').innerHTML = rationales.map(r => `<div class="recommendation"><div class="rec-icon">${r.icon}</div><div><h4>${r.title}</h4><p>${r.text}</p></div></div>`).join('');
+
+      renderSimulator(metrics);
+    }
+
+    function renderSimulator(metrics) {
+      const select = document.getElementById('simDept');
+      if (!select.options.length) select.innerHTML = DEPARTMENTS.map(d=>`<option value="${d.key}">${d.label}</option>`).join('');
+      const key = select.value || 'inbound';
+      const m = metrics[key];
+      const extra = number(document.getElementById('simExtraHC').value);
+      const ot = number(document.getElementById('simOT').value);
+      const newCapacity = (m.hc + extra) * (m.hours + ot) * m.rate * m.eff;
+      const newBacklog = Math.max(0,m.workload-newCapacity);
+      document.getElementById('simCapacity').value = fmt(newCapacity) + ' pcs';
+      document.getElementById('simBacklog').value = fmt(newBacklog) + ' pcs';
+      document.getElementById('simResult').value = newBacklog <= 0 ? 'Workload covered' : 'Gap remains';
+      document.getElementById('simNote').textContent = newBacklog <= 0 ? `This scenario covers the ${fmt(m.workload)} pcs workload with about ${fmt(newCapacity-m.workload)} pcs spare capacity.` : `This scenario still leaves ${fmt(newBacklog)} pcs. Add HC, OT, or defer lower-priority work.`;
+    }
+
+    function milestoneTime(fraction) {
+      const [h,m] = (state.meta.shiftStart || '08:00').split(':').map(number);
+      const total = h*60 + m + number(state.meta.shiftHours)*60*fraction;
+      const hh = Math.floor((total%(24*60))/60).toString().padStart(2,'0');
+      const mm = Math.round(total%60).toString().padStart(2,'0');
+      return `${hh}:${mm}`;
+    }
+    function currentShiftFraction() {
+      const today = new Date();
+      const plan = new Date(state.meta.planDate + 'T00:00:00');
+      if (today.toDateString() !== plan.toDateString()) return today < plan ? 0 : 1;
+      const [h,m] = (state.meta.shiftStart || '08:00').split(':').map(number);
+      const start = new Date(); start.setHours(h,m,0,0);
+      const end = new Date(start.getTime() + number(state.meta.shiftHours)*3600000);
+      return clamp((today-start)/(end-start),0,1);
+    }
+
+    function renderWorkflow(metrics) {
+      const shiftFraction = currentShiftFraction();
+      document.getElementById('milestoneTable').innerHTML = DEPARTMENTS.map(d => {
+        const m = metrics[d.key];
+        const plan = Math.min(m.workload,m.capacity);
+        const q1 = Math.round(plan*.25), q2 = Math.round(plan*.5), q3 = Math.round(plan*.75), q4 = Math.round(plan);
+        const currentTarget = Math.round(plan*shiftFraction);
+        const variance = m.actual-currentTarget;
+        const status = m.actual >= currentTarget ? {cls:'good',text:'On / Ahead'} : (variance >= -Math.max(10,currentTarget*.1) ? {cls:'warn',text:'Slightly Behind'} : {cls:'bad',text:'Behind'});
+        return `<tr><td><strong>${d.icon} ${d.label}</strong></td><td>${fmt(q1)} pcs<br><small>${milestoneTime(.25)}</small></td><td>${fmt(q2)} pcs<br><small>${milestoneTime(.5)}</small></td><td>${fmt(q3)} pcs<br><small>${milestoneTime(.75)}</small></td><td>${fmt(q4)} pcs<br><small>${milestoneTime(1)}</small></td><td>${fmt(m.actual)} pcs</td><td>${fmt(currentTarget)} pcs</td><td>${variance>0?'+':''}${fmt(variance)} pcs</td><td><span class="status-pill ${status.cls}">${status.text}</span></td></tr>`;
+      }).join('');
+
+      const risks = [];
+      const pairs = [
+        ['inbound','qc','Receiving release'],
+        ['qc','fulfillment','Stock release'],
+        ['fulfillment','outbound','Completed order handoff']
+      ];
+      pairs.forEach(([up,down,label]) => {
+        const upCap = metrics[up].capacity;
+        const downCap = metrics[down].capacity;
+        const upName = DEPARTMENTS.find(d=>d.key===up).label;
+        const downName = DEPARTMENTS.find(d=>d.key===down).label;
+        if (upCap > downCap * 1.1 && metrics[up].workload > 0) {
+          risks.push({icon:'⚠️', title:`${label}: ${downName} absorption is lower`, text:`${upName} can produce ${fmt(upCap)} pcs versus ${fmt(downCap)} pcs at ${downName}. Use batch releases, temporary staging limits, or rebalance manpower.`});
+        } else {
+          risks.push({icon:'✅', title:`${label}: capacity is reasonably aligned`, text:`The current ${upName} and ${downName} capacities do not show a major handoff mismatch under the selected assumptions.`});
+        }
+      });
+      const cutoff = state.meta.dispatchCutoff || '17:00';
+      const out = metrics.outbound;
+      risks.push({icon:'🚚', title:`Outbound cutoff control: ${cutoff}`, text:`Outbound needs about ${fmt(out.completionHours,1)} working hours for the full workload with current HC. Start final verification early enough to protect loading and document completion.`});
+      document.getElementById('handoffRisks').innerHTML = risks.map(r => `<div class="recommendation"><div class="rec-icon">${r.icon}</div><div><h4>${r.title}</h4><p>${r.text}</p></div></div>`).join('');
+    }
+
+    function setupCanvas(canvas) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(320, rect.width);
+      const height = 260;
+      canvas.width = width*dpr;
+      canvas.height = height*dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr,dpr);
+      return {ctx,width,height};
+    }
+    function drawCapacityChart(metrics) {
+      const canvas = document.getElementById('capacityChart');
+      if (!canvas.offsetParent) return;
+      const {ctx,width,height} = setupCanvas(canvas);
+      ctx.clearRect(0,0,width,height);
+      const pad = {l:55,r:18,t:18,b:48};
+      const plotW = width-pad.l-pad.r, plotH = height-pad.t-pad.b;
+      const vals = DEPARTMENTS.flatMap(d=>[metrics[d.key].workload, metrics[d.key].capacity]);
+      const max = Math.max(1,...vals)*1.15;
+      ctx.font = '11px system-ui'; ctx.fillStyle='#6a7f76'; ctx.strokeStyle='#e1ebe5'; ctx.lineWidth=1;
+      for(let i=0;i<=4;i++) { const y=pad.t+plotH*i/4; ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(width-pad.r,y); ctx.stroke(); const val=max*(1-i/4); ctx.fillText(fmt(val),4,y+4); }
+      const groupW=plotW/DEPARTMENTS.length; const barW=Math.min(34,groupW*.28);
+      DEPARTMENTS.forEach((d,i)=>{
+        const m=metrics[d.key]; const x=pad.l+i*groupW+groupW/2;
+        const h1=m.workload/max*plotH, h2=m.capacity/max*plotH;
+        ctx.fillStyle='#9ccdb5'; ctx.fillRect(x-barW-3,pad.t+plotH-h1,barW,h1);
+        ctx.fillStyle='#1f7a55'; ctx.fillRect(x+3,pad.t+plotH-h2,barW,h2);
+        ctx.fillStyle='#52685f'; ctx.textAlign='center'; ctx.fillText(d.label,x,height-18);
+      });
+      ctx.textAlign='left';
+    }
+    function drawBacklogChart(metrics) {
+      const canvas = document.getElementById('backlogChart');
+      if (!canvas.offsetParent) return;
+      const {ctx,width,height} = setupCanvas(canvas);
+      ctx.clearRect(0,0,width,height);
+      const pad={l:55,r:18,t:18,b:48}, plotW=width-pad.l-pad.r, plotH=height-pad.t-pad.b;
+      const days=['Today','Tomorrow','Day 3'];
+      const series=DEPARTMENTS.map(d=>{
+        const dailyGap=Math.max(0,metrics[d.key].workload-metrics[d.key].capacity);
+        return {label:d.label, vals:[dailyGap,dailyGap*2,dailyGap*3]};
+      });
+      const max=Math.max(1,...series.flatMap(s=>s.vals))*1.15;
+      ctx.font='11px system-ui'; ctx.strokeStyle='#e1ebe5'; ctx.fillStyle='#6a7f76'; ctx.lineWidth=1;
+      for(let i=0;i<=4;i++){const y=pad.t+plotH*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(width-pad.r,y);ctx.stroke();ctx.fillText(fmt(max*(1-i/4)),4,y+4);}
+      const groupW=plotW/days.length; const barW=Math.max(8,Math.min(22,groupW/(DEPARTMENTS.length+2)));
+      const shades=['#d88787','#bd5e5e','#a83f3f','#7f2e2e'];
+      days.forEach((day,di)=>{
+        const cx=pad.l+di*groupW+groupW/2; const totalW=barW*DEPARTMENTS.length+4*(DEPARTMENTS.length-1); let x=cx-totalW/2;
+        series.forEach((s,si)=>{const h=s.vals[di]/max*plotH;ctx.fillStyle=shades[si];ctx.fillRect(x,pad.t+plotH-h,barW,h);x+=barW+4;});
+        ctx.fillStyle='#52685f';ctx.textAlign='center';ctx.fillText(day,cx,height-18);
+      });ctx.textAlign='left';
+    }
+
+    function renderAll() {
+      const metrics = allMetrics();
+      const allocation = calculateAllocation(metrics);
+      renderDashboard(metrics, allocation);
+      renderCapacity(metrics, allocation);
+      renderWorkflow(metrics);
+    }
+
+    function switchView(view) {
+      document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+      document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${view}`));
+      requestAnimationFrame(()=>renderAll());
+    }
+
+    function applyAllocation() {
+      if (!lastAllocation.allocation) return;
+      DEPARTMENTS.forEach(d => state.departments[d.key].hc = lastAllocation.allocation[d.key]);
+      document.querySelectorAll('[data-path]').forEach(el => { if (el.dataset.path.endsWith('.hc')) el.value = getPath(state,el.dataset.path); });
+      saveState(); renderAll(); showToast('Recommended headcount applied to the plan.');
+    }
+
+    function exportPlan() {
+      const payload = { app:'Warehouse Capacity Planning', version:'1.0', exportedAt:new Date().toISOString(), state };
+      const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`warehouse-plan-${state.meta.planDate || 'date'}.json`; a.click(); URL.revokeObjectURL(a.href);
+    }
+    function importPlan(file) {
+      const reader=new FileReader();
+      reader.onload=()=>{
+        try { const parsed=JSON.parse(reader.result); state=mergeDeep(defaultState,parsed.state || parsed); saveState(); document.querySelectorAll('[data-path]').forEach(el=>el.value=getPath(state,el.dataset.path) ?? ''); renderAll(); showToast('Plan imported successfully.'); }
+        catch(e){ showToast('Invalid plan file.'); }
+      };
+      reader.readAsText(file);
+    }
+    function resetPlan() {
+      if (!confirm('Reset all planning data and standards to the Version 1.0 defaults?')) return;
+      state=clone(defaultState); saveState(); document.querySelectorAll('[data-path]').forEach(el=>el.value=getPath(state,el.dataset.path) ?? ''); renderAll(); showToast('Plan reset to defaults.');
+    }
+    function showToast(message) { const t=document.getElementById('toast'); t.textContent=message; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2400); }
+
+    function init() {
+      createPlanningCards();
+      bindInputs();
+      document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>switchView(btn.dataset.view)));
+      document.getElementById('printBtn').addEventListener('click',()=>window.print());
+      document.getElementById('exportBtn').addEventListener('click',exportPlan);
+      document.getElementById('importFile').addEventListener('change',e=>{if(e.target.files[0]) importPlan(e.target.files[0]); e.target.value='';});
+      document.getElementById('resetBtn').addEventListener('click',resetPlan);
+      document.getElementById('applyAllocationBtn').addEventListener('click',applyAllocation);
+      ['simDept','simExtraHC','simOT'].forEach(id=>document.getElementById(id).addEventListener('input',()=>renderSimulator(allMetrics())));
+      window.addEventListener('resize',()=>{clearTimeout(window.__chartTimer);window.__chartTimer=setTimeout(renderAll,120);});
+      renderAll();
+      saveState();
+    }
+
+    init();
+  </script>
+</body>
+</html>
